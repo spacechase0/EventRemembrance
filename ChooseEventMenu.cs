@@ -55,7 +55,8 @@ namespace EventRemembrance
                     Game1.getLocationFromName(clickedEvent.Location).currentEvent = new Event(commands);
                     Game1.warpFarmer(clickedEvent.Location, 8, 8, false);
                 }
-                else Farmhand.API.Dialogues.Dialogue.OpenStatement("There is a pending event in that area.");
+                else
+                    Game1.addHUDMessage(new HUDMessage("There is a pending event in that area."));
             }
         }
         

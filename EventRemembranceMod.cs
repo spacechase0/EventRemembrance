@@ -1,22 +1,24 @@
-﻿using Farmhand;
-using Farmhand.API.Dialogues;
-using Farmhand.Events;
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.IO;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+using StardewModdingAPI;
+using StardewModdingAPI.Events;
+using StardewValley;
 
 namespace EventRemembrance
 {
-    class EventRemembranceMod : Farmhand.Mod
+    class EventRemembranceMod : Mod
     {
-        public override void Entry()
-        {
-            EventEvents.OnEventFinished += afterEvent;
-            GameEvents.OnAfterLoadedContent += afterContentLoaded;
+        /// <summary>Whether an event was playing last tick.</summary>
+        private bool WasInEvent;
 
+        public override void Entry(IModHelper helper)
+        {
+            this.LoadContent();
+
+            helper.Events.GameLoop.UpdateTicked += OnUpdateTicked;
+
+            // TODO: migrate old Farmhand code
             DialogueResultInformation dreamResult = new DialogueResultInformation(this, new Dialogue.AnswerResult(dream));
             DialogueAnswerInformation dreamAnswer = new DialogueAnswerInformation(this, "SleepDream", "Dream", dreamResult);
             Dialogue.RegisterNewAnswer(Questions.Sleep, dreamAnswer);
@@ -36,17 +38,26 @@ namespace EventRemembrance
         }
 
         internal static PreEventState preEvent;
-        private void afterEvent( object sender, EventArgs args )
+        private void OnUpdateTicked(object sender, UpdateTickedEventArgs e)
         {
-            if (preEvent != null)
-                preEvent.apply();
-            preEvent = null;
+            if (!Context.IsWorldReady)
+                return;
+
+            // handle event finished
+            if (Game1.eventUp)
+                this.WasInEvent = true;
+            else if (this.WasInEvent)
+            {
+                preEvent?.apply();
+                preEvent = null;
+                this.WasInEvent = false;
+            }
         }
 
-        private void afterContentLoaded( object sender, EventArgs args )
+        private void LoadContent()
         {
             Dictionary<string, Dictionary<string, string>> eventLocs = Util.LoadContentFolder<Dictionary<string, string>>("Data/Events");
-            Farmhand.Logging.Log.Verbose($"[EventRemembrance] Total event locations: {eventLocs.Count}");
+            this.Monitor.VerboseLog($"[EventRemembrance] Total event locations: {eventLocs.Count}");
 
             // Cache all the event stuff.
             // Key: ID
@@ -65,17 +76,17 @@ namespace EventRemembrance
                     eventData.Add( currEv );
                 }
             }
-            Farmhand.Logging.Log.Verbose($"[EventRemembrance] Total events: {eventData.Count}");
+            this.Monitor.VerboseLog($"[EventRemembrance] Total events: {eventData.Count}");
 
             // Load event names
-            foreach ( string line in File.ReadLines( Path.Combine( ModSettings.ModDirectory, "eventnames.txt" ) ) )
+            foreach ( string line in File.ReadLines( Path.Combine(this.Helper.DirectoryPath, "eventnames.txt" ) ) )
             {
                 if (line == "") continue;
 
                 int eq = line.IndexOf('=');
                 if ( eq == -1 )
                 {
-                    Farmhand.Logging.Log.Verbose("[EventRemembrance] Incorrectly formatted line in eventnames.txt");
+                    this.Monitor.VerboseLog("[EventRemembrance] Incorrectly formatted line in eventnames.txt");
                     continue;
                 }
 
@@ -83,7 +94,7 @@ namespace EventRemembrance
                 string name = line.Substring(eq + 1);
                 eventNames.Add(id, name);
             }
-            Farmhand.Logging.Log.Verbose($"[EventRemembrance] Total event names: {eventNames.Count}");
+            this.Monitor.VerboseLog($"[EventRemembrance] Total event names: {eventNames.Count}");
 
             // Filter out extra so I know which to remove
             /*
