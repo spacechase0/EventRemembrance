@@ -1,0 +1,9 @@
+﻿{
+  "Name": "Event Remembrance",
+  "Author": "spacechase0",
+  "Version": "0.1.0",
+  "Description": "Dream about the past.",
+  "UniqueID": "spacechase0.EventRemembrance",
+  "EntryDll": "EventRemembrance.dll",
+  "UpdateKeys": []
+}
